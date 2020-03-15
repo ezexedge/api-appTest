@@ -1,4 +1,5 @@
 const Joi = require('joi')
+const log = require("./../../../utils/logger")
 
 
 const blueprintProducto = Joi.object().keys({
@@ -18,6 +19,7 @@ module.exports = (req,res,next) =>{
 			return acumulador + `[${error.message}]`
 
 		},"")
+		log.warn("el siguiente producto no paso la validacion", req.body,erroresDeValidacion)
 		res.status(400).send(`${erroresDeValidacion}`)
 	}
 }

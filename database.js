@@ -3,8 +3,10 @@ const productos = [
 	{id: '124', titulo: 'taza de cafe' , precio : 10 , moneda : 'USD'},
 	{id: '555', titulo: 'microfono' , precio : 211 , moneda : 'USD'}
 ]
+const usuarios = []
 
 
 module.exports = {
-	productos
+	productos,
+	usuarios
 }

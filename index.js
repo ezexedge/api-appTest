@@ -4,53 +4,39 @@ const bodyParser = require('body-parser')
 const  _ = require('underscore')
 const productos = require('./database').productos
 const productosRouter = require('./api/recursos/productos/productos.routes')
-const winston = require('winston')
+const usuariosRouter = require('./api/recursos/usuarios/usuarios.routes')
+const morgan = require('morgan')
+const logger = require("./utils/logger")
+const passport = require('passport')
 
+const passportJWT = require('passport-jwt')
+const authJWT = require('./api/libs/auth')
 
-
-const incluirFecha  = winston.format((info) => {
-	info.message = `${new Date().toISOString()} ${info.message}`
-	return info
-})
-
-const logger = winston.createLogger({
-	transports : [
-	new winston.transports.Console({
-		level: 'debug',
-		handleExceptions: true,
-		format: winston.format.combine(
-			winston.format.colorize(),
-			winston.format.simple()
-			)
-
-	}),
-	new winston.transports.File({
-		level: 'info',
-		handleExceptions: true,
-		format: winston.format.combine(
-			incluirFecha(),
-			winston.format.simple()
-			),
-		maxsize: 5120000, // 5mb
-		maxFiles : 5,
-		filename: `${__dirname}/logs-de-aplicacion.log`
-
-	})
-	]
-})
-
-//winston
-logger.info("hola ")
-logger.error("exploto")
 
 const app = express()
 app.use(bodyParser.json())
+app.use(morgan('short',{
+	stram : {
+		write: message => logger.info(message.trim())
+	}
+}))
+
+passport.use(authJWT)
+
+app.use(passport.initialize())
+
 
 app.use('/productos',productosRouter)
+app.use('/usuarios',usuariosRouter)
 
-
+app.get('/', passport.authenticate('jwt', {
+	session : false
+}) ,(req,res)=>{
+	logger.info(req.user)
+	res.send('api vende tus corotos')
+})
 
 
 app.listen(3000, ()=>{
-	console.log('puerto 3000')
+	logger.info("escuchando puerto 3000")
 })
