@@ -1,18 +1,24 @@
 const _ = require("underscore")
+const bcrypt = require('bcrypt')
+
+const passportJWT = require('passport-jwt')
+
+
 const log = require("./../../utils/logger")
 const usuarios = require("./../../database").usuarios
-const bcrypt = require('bcrypt')
-const JwtStrategy = require('passport-jwt').Strategy;
-const ExtractJwt = require('passport-jwt').ExtractJwt;
-const passportJWT = require('passport-jwt')
 const keys = require('./../../config/keys')
+const config = require('../../config')
 
-const opts = {};
 
-opts.jwtFromRequest = ExtractJwt.fromAuthHeaderAsBearerToken();
-opts.secretOrKey = keys.secretOrKey;
 
-module.exports = new  JwtStrategy(opts,(jwtPayload,next)=>{
+
+let jwtOptions = {
+	secretOrKey : config.jwt.secretOrKey,
+	jwtFromRequest : passportJWT.ExtractJwt.fromAuthHeaderAsBearerToken()
+
+}
+
+module.exports = new  passportJWT.Strategy(jwtOptions,(jwtPayload,next)=>{
 		let index = _.findIndex(usuarios,usuario => usuario.id === jwtPayload.id)
 
 		if(index === -1){

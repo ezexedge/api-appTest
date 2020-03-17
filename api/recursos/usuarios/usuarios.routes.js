@@ -2,49 +2,65 @@ const express = require("express")
 const _ = require("underscore")
 const uuid = require('uuid/v4')
 const Joi = require('joi')
+const bcrypt  = require("bcrypt")
+const jwt = require("jsonwebtoken")
+
+
+
+const usuariosController = require('./usuarios.controller')
 const validarUsuario = require('./usuarios.validate').validarUsuario
 const validarPedidoDeLogin = require('./usuarios.validate').validarPedidoDeLogin
 const log = require("../../../utils/logger")
 const usuarios = require('../../../database').usuarios
-const bcrypt  = require("bcrypt")
-const jwt = require("jsonwebtoken")
+const config = require('../../../config')
+
+
 const usuariosRouter = express.Router()
 
 usuariosRouter.get('/',(req,res)=>{
-	res.json(usuarios)
+	usuariosController.obtenerUsuarios()
+		.then(usuarios => {
+			res.json(usuarios)
+		})
+		.catch(err => {
+			log.error("error a obtener todos los usuarios",err)
+			res.sendStatus(500)
+		})
 })
 
 usuariosRouter.post('/',validarUsuario,(req,res)=>{
 	let nuevoUsuario = req.body
 
-	let indice = _.findIndex(usuarios,usuario=>{
-		return usuario.username === nuevoUsuario.username || usuario.email === nuevoUsuario.email
 
-	})
+	usuariosController.usuarioExiste(nuevoUsuario.username , nuevoUsuario.email)
+		.then(usuarioExiste => {
+			if(usuarioExiste){
+				log.warn(`el usuario de nombre  ${nuevoUsuario.username} y de email : ${nuevoUsuario.email}`)
+				//el status 409 signfica estado de conflicto
+				res.status(409).send('el usuario con ese email y username ya estan registrados')
+				return
+			}
 
-	if(indice !== -1){
-		//conflig
-		log.info("el email o el nombre se encuentran en la base de datoss")
-		res.status(409).send("el email o el usuario ya esta asociada a una cuenta")
-		return 
-	}
+			bcrypt.hash(nuevoUsuario.password,10,(err,hashedPassword)=>{
+				if(err){
+					log.error("error al tratar de hashear",err)
+					res.status(500).send('error procesando creacion del usuario')
+					return
 
-	bcrypt.hash(nuevoUsuario.password,10,(error,hashedPassword)=>{
-		if(error){
-			log.error("error ocurrio al tratar de tener el hash",error)
-			res.status(500).send("ocurrio el error")	
-			return	
-		}
+				}
 
-		usuarios.push({
-			username : nuevoUsuario.username,
-			email : nuevoUsuario.email,
-			password : hashedPassword,
-			id: uuid()
+				usuariosController.crearUsuario(nuevoUsuario,hashedPassword)
+					.then(nuevoUsuario =>{
+						res.status(201).send("usuario creado exitosamente")
+					})
+					.catch(err =>{
+						log.error("error al querer crear un usuario")
+						res.status(500).send("error al querer crear un usuario")
+					})
+
+			})
 		})
-		
-		res.status(201).send("usuario creado exitosamente")
-	})
+
 })
 
 
@@ -64,15 +80,15 @@ usuariosRouter.post('/login',validarPedidoDeLogin,(req,res)=>{
 	bcrypt.compare(usuarioNoAutenticado.password,hashedPassword,(err,iguales)=>{
 		if(iguales){
 		
-			let token = jwt.sign({id : usuarios[index].id}, "secreto",{
-				expiresIn : 86400
+			let token = jwt.sign({id : usuarios[index].id}, config.jwt.secretOrKey,{
+				expiresIn : config.jwt.tiempoDeExpiracion
 			})
 			log.info("el usuario se logeo")
 			res.status(200).json({token})
 			
 		}else{
 			log.info("el usuario no se autentico")
-			res.status(400).send("")
+			res.status(400).send("error")
 		}
 
 
